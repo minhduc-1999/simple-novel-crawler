@@ -13,7 +13,10 @@ import (
 
 func Execute(fileName, novelName string, total, batchSize int) {
 	var wg sync.WaitGroup
-	nWorker := total/batchSize + 1
+	nWorker := total / batchSize
+	if total%batchSize > 0 {
+		nWorker++
+	}
 	dir := fmt.Sprintf("./target/%v", novelName)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err := os.Mkdir(dir, os.ModePerm)
@@ -27,6 +30,7 @@ func Execute(fileName, novelName string, total, batchSize int) {
 			start := i*batchSize + 1
 			end := start + batchSize - 1
 			workerName := fmt.Sprintf("Crawler %d-%d", start, end)
+			hasError := false
 			if end > total {
 				end = total
 			}
@@ -70,11 +74,14 @@ func Execute(fileName, novelName string, total, batchSize int) {
 			})
 
 			c.OnError(func(r *colly.Response, err error) {
-				log.Printf("[%v] Error: %v\n", workerName, r.Request.URL.String())
+				log.Printf("[%v] Error: %v\n%v", workerName, r.Request.URL.String(), err.Error())
+				hasError = true
 			})
 
-			c.Visit(fmt.Sprintf("https://truyenfull.vn/%v/chuong-%d/", novelName, start))
-			log.Printf("[%v] Succeed\n", workerName)
+			c.Visit(fmt.Sprintf("https://truyenfull.io/%v/chuong-%d/", novelName, start))
+			if !hasError {
+				log.Printf("[%v] Success\n", workerName)
+			}
 			wg.Done()
 		}()
 	}
